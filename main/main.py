@@ -383,19 +383,7 @@ class MainFrame(wx.Frame):
 
 
         cam.release()
-        cv2.destroyAllWindows()
-        self.bmp.SetBitmap(wx.Bitmap(self.image_cover))
-        self.grid.updateGrid()
-        self.text9.SetLabel(u'温馨提示：' + '您好，欢迎使用人脸考勤系统！')
 
-    def cv2ImgAddText(self,img, text, left, top, textColor=(0, 255, 0), textSize=20):
-        if (isinstance(img, numpy.ndarray)):  # 判断是否OpenCV图片类型
-            img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        draw = ImageDraw.Draw(img)
-        fontText = ImageFont.truetype(
-            font_file_path, textSize, encoding="utf-8")
-        draw.text((left, top), text, textColor, font=fontText)
-        return cv2.cvtColor(numpy.asarray(img), cv2.COLOR_RGB2BGR)
 
 
 class CollectFrame(wx.Frame):
@@ -427,20 +415,6 @@ class CollectFrame(wx.Frame):
         self.text3.SetFont(font)
         sizer.Add(self.text3, proportion=1, flag=wx.ALIGN_LEFT | wx.EXPAND, border=10)
 
-        # 学号输入框
-        self.text4 = wx.TextCtrl(panel, -1, size=(200, -1), style=wx.TE_LEFT)
-        self.text4.SetFont(font)
-        sizer.Add(self.text4, proportion=0, flag=wx.ALL | wx.EXPAND, border=15)
-
-        # 设置静态'学院'
-        self.text5 = wx.StaticText(panel, -1, '学院：', style=wx.ALIGN_LEFT)
-        self.text5.SetFont(font)
-        sizer.Add(self.text5, proportion=1, flag=wx.ALIGN_LEFT | wx.EXPAND, border=10)
-
-        # 学院输入框
-        self.text6 = wx.TextCtrl(panel, -1, size=(200, -1), style=wx.TE_LEFT)
-        self.text6.SetFont(font)
-        sizer.Add(self.text6, proportion=0, flag=wx.ALL | wx.EXPAND, border=15)
 
         # 设置采集人脸数据按钮
         self.startCollect = wx.Button(panel, -1, '开始采集人脸数据')
@@ -450,16 +424,6 @@ class CollectFrame(wx.Frame):
 
         panel.SetSizer(sizer)
 
-        # 按钮对应的事件
-        self.startCollect.Bind(wx.EVT_BUTTON, self.startCollect_Event)
-        self.Bind(wx.EVT_CLOSE,self.onClose)
-        self.Center()
-        self.Show()
-
-    def startCollect_Event(self,event):
-        face_name = self.text2.GetValue()
-        face_num = self.text4.GetValue()
-        face_college = self.text6.GetValue()
 
         result = self.mySqlDao.PutDatatoSql(face_name, face_num,face_college)
         flag = 0 # 是否成功
@@ -480,23 +444,7 @@ class CollectFrame(wx.Frame):
             self.Message.ShowModal()
             self.Message.Destroy()
 
-        if flag == 1 :
-            if result ==1:
-                self.Message = wx.MessageDialog(self, '信息录入数据库成功！确认后开始采集人脸！', '成功', wx.ICON_ASTERISK)
-            else:
-                self.Message = wx.MessageDialog(self, '该信息已在数据库，但是人脸数据未成功采集！\n确认后将重新采集人脸数据！', '警告', wx.ICON_WARNING)
-            self.Message.ShowModal()
-            self.Message.Destroy()
-            self.Hide()
-            second = 3
-            while second > 0:
-                self.mainFrame.text5.SetLabel(u'\n温馨提示：\n' + '⚪请对准摄像头\n' + str(second) + '秒后开始进行人脸录入...')
-                self.mainFrame.text5.Update()
-                time.sleep(1)
-                second -= 1
-            self.mainFrame.collected = False
-            t1 = threading.Thread(target=self.mainFrame.collect,args=(face_num,))
-            t1.start()
+
 
     def onClose(self,event):
         self.mainFrame.text5.SetLabel(u'')
@@ -519,24 +467,6 @@ class MyGrid(wx.grid.Grid):
         self.SetColLabelValue(4,'是否迟到')
         self.mySqlDao = mySqlDao
 
-    def updateGrid(self):
-        self.ClearGrid()
-        if self.GetNumberRows() > 0:
-            self.DeleteRows(0, self.GetNumberRows())
-        # 获取打卡表数据
-        data = self.mySqlDao.getCheckData()
-        x = len(data)
-        y = 5
-        self.InsertRows(0, x)
-        for i in range(0,x):
-            for j in range(0,y):
-                self.SetCellValue(i,j, str(data[i][j]))
-
-        #设置列的宽度
-        self.AutoSize()
-        self.Update()
-        self.Refresh()
-
 
 '''
 操作数据库的类
@@ -553,26 +483,7 @@ class MySQLDao():
         cur = con.cursor()
         #判断是否存在库
         #判断是否存在表 无则自动创建
-        sql1 = r'''
-                    CREATE TABLE IF NOT EXISTS `t_stu`(
-                          `id` INTEGER  PRIMARY KEY AUTOINCREMENT,
-                          `sname` TEXT NOT NULL,
-                          `sno` TEXT NOT NULL,
-                          `college` TEXT NOT NULL,
-                          `created_time` datetime DEFAULT NULL
-                        );
-                     '''
-        sql2 = r'''
-               CREATE TABLE IF NOT EXISTS `t_check`(
-                          `id` INTEGER PRIMARY KEY AUTOINCREMENT ,
-                          `uid` INTEGER NOT NULL,
-                          `check_time` datetime NOT NULL,
-                          CONSTRAINT `check_ibfk_1` FOREIGN KEY (`uid`) REFERENCES `t_stu` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-                      );
-                '''
-        try:
-            cur.execute(sql1)
-            cur.execute(sql2)
+
             con.commit()
         except Exception as e:
             self.mainFrame.Message = wx.MessageDialog(self.mainFrame, '数据库初始化失败！请检查数据库是否正常创建或链接！', 'ERROR', wx.ICON_ERROR)
